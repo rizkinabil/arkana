@@ -1,104 +1,26 @@
-version: "3.9"
-
-name: moneyforge
 services:
   db:
-    image: postgres:16-alpine
-    container_name: mf-postgres
-    restart: unless-stopped
+    image: postgres:15
+    container_name: postgres-db
+    restart: always
     environment:
-      POSTGRES_DB: ${DB_NAME:-arkana_dev}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      TZ: Asia/Jakarta
+      POSTGRES_USER: arkana
+      POSTGRES_PASSWORD: rootpwd
+      POSTGRES_DB: arkanadb
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-arkana_dev}"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks: [app-net]
+      - postgres_data:/var/lib/postgresql/data
 
   redis:
-    image: redis:7-alpine
-    container_name: mf-redis
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    image: redis:7
+    container_name: redis-cache
+    restart: always
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "6379:6379"
     volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks: [app-net]
-
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: mf-app
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    env_file:
-      - .env
-    environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
-      SERVER_PORT: ${SERVER_PORT:-8080}
-      # Map DB to Spring
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-arkana_dev}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      # Redis to Spring
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      # JWT
-      JWT_SECRET: ${JWT_SECRET:-dev-only-please-change}
-    ports:
-      - "${SERVER_PORT:-8080}:8080"
-    networks: [app-net]
-
-  # Optional tooling (enable via --profile tools)
-  pgadmin:
-    image: dpage/pgadmin4:8
-    profiles: ["tools"]
-    container_name: mf-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@local.test}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-    ports:
-      - "5050:80"
-    depends_on:
-      db:
-        condition: service_healthy
-    networks: [app-net]
-
-  redisinsight:
-    image: redis/redisinsight:latest
-    profiles: ["tools"]
-    container_name: mf-redisinsight
-    restart: unless-stopped
-    ports:
-      - "5540:5540"
-    networks: [app-net]
+      - redis_data:/data
 
 volumes:
-  pgdata:
-  redisdata:
-
-networks:
-  app-net:
-    driver: bridge
+  postgres_data:
+  redis_data:
